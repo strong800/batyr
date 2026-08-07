@@ -13,7 +13,6 @@
 import { PrismaClient } from '@prisma/client';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { REVIEW_VIDEOS } from '../scripts/mediaManifest';
 
 const db = new PrismaClient();
 
@@ -680,28 +679,13 @@ async function main() {
   });
   console.log(`Этапы: ${STAGES.length}`);
 
-  // --- Отзывы ---
-  // Отзывы у компании видеоформатные. Текста к ним нет: субтитры в роликах
-  // покадровые, дословно их не собрать, а придумывать за заказчиков нельзя.
-  // Поэтому карточка отзыва — это сам ролик с постером, а поле text пустое
-  // и заполняется вручную в админке.
+  // Отзывы наполняются отдельной командой npm run reviews:import:
+  // ролики приходят не из папки с материалами, а поштучно.
+  // Карта нужна, чтобы уже существующие отзывы не потеряли привязку медиа.
   const reviewIdByKey = new Map<string, string>();
-  for (const [i, video] of REVIEW_VIDEOS.entries()) {
-    const review = await db.review.upsert({
-      where: { key: video.name },
-      create: {
-        key: video.name,
-        authorName: video.authorName,
-        authorInfo: video.authorInfo,
-        format: 'VIDEO',
-        sortOrder: i,
-      },
-      // Имя и подпись могли поправить в админке — не перетираем
-      update: { format: 'VIDEO', sortOrder: i },
-    });
-    reviewIdByKey.set(video.name, review.id);
+  for (const review of await db.review.findMany({ select: { id: true, key: true } })) {
+    reviewIdByKey.set(review.key, review.id);
   }
-  console.log(`Отзывы: ${REVIEW_VIDEOS.length}`);
 
   // --- Настройки ---
   for (const s of SETTINGS) {
@@ -742,7 +726,11 @@ async function main() {
 
   // --- Медиа ---
   const mediaIndex = await loadMediaIndex();
-  await db.media.deleteMany();
+  // Чистим только то, чем управляет media:import.
+  // Видеоотзывы живут своей жизнью — их заводит reviews:import,
+  // и в mediaIndex.json их нет. Без этого условия повторное
+  // сидирование молча отвязывало видео от всех отзывов.
+  await db.media.deleteMany({ where: { reviewId: null } });
 
   let attached = 0;
   let skipped = 0;

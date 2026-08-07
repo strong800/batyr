@@ -20,6 +20,12 @@ prisma/*.db-journal
 # Обработанные медиа генерируются скриптом media:import из исходной папки
 public/uploads/
 
+# Папка-приёмник видеоотзывов: сами ролики в репозиторий не идут,
+# инструкция внутри — идёт
+media/**
+!media/reviews/
+!media/reviews/README.md
+
 *.log
 .DS_Store
 Thumbs.db

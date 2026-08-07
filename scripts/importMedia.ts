@@ -26,7 +26,6 @@ import {
   DEFAULT_SOURCE_DIR,
   MEDIA,
   PRODUCTION_STILLS,
-  REVIEW_VIDEOS,
   SOURCE_DIR_ENV,
   VIDEO_FILE,
   VIDEO_POSTER_AT,
@@ -389,127 +388,8 @@ async function main() {
     }
   }
 
-  // ------------------------------------------------------ ВИДЕООТЗЫВЫ
-  console.log('\nВидеоотзывы:');
-  if (!ffmpeg) {
-    warn('ffmpeg не найден — видеоотзывы пропущены');
-  } else {
-    await mkdir(path.join(UPLOADS_DIR, 'reviews'), { recursive: true });
-
-    for (const review of REVIEW_VIDEOS) {
-      const absReview = path.join(SOURCE_DIR, review.file);
-      if (!(await fileExists(absReview))) {
-        warn(`нет исходника ${review.file} — отзыв пропущен`);
-        continue;
-      }
-
-      const outVideo = path.join(UPLOADS_DIR, 'reviews', `${review.name}.mp4`);
-      const outPoster = path.join(UPLOADS_DIR, 'reviews', `${review.name}-poster.webp`);
-      const posterTmp = path.join(UPLOADS_DIR, 'reviews', `_${review.name}.png`);
-      const ready = !FORCE && (await fileExists(outVideo)) && (await fileExists(outPoster));
-
-      if (!ready) {
-        // Телефонные исходники весят десятки и сотни мегабайт.
-        // Приводим к ширине не больше maxWidth; -2 держит высоту чётной,
-        // иначе h264 откажется кодировать.
-        const encoded = await runFfmpeg(
-          ffmpeg,
-          [
-            '-i', absReview,
-            '-vf', `scale='min(${review.maxWidth},iw)':-2`,
-            '-c:v', 'libx264',
-            '-profile:v', 'high',
-            '-crf', String(review.crf),
-            '-preset', 'slow',
-            '-pix_fmt', 'yuv420p',
-            '-movflags', '+faststart',
-            '-c:a', 'aac',
-            '-b:a', '96k',
-            outVideo,
-          ],
-          `отзыв ${review.name}`,
-        );
-        if (!encoded) continue;
-
-        // -ss после -i: точный поиск нужного кадра
-        const framed = await runFfmpeg(
-          ffmpeg,
-          ['-i', absReview, '-ss', String(review.posterAt), '-frames:v', '1', posterTmp],
-          `постер отзыва ${review.name}`,
-        );
-        if (framed) {
-          try {
-            await sharp(posterTmp)
-              .rotate()
-              .resize({ width: review.maxWidth })
-              .webp({ quality: 80 })
-              .toFile(outPoster);
-          } catch (err) {
-            warn(`постер отзыва ${review.name}: ${(err as Error).message}`);
-          }
-        }
-      }
-
-      if (!(await fileExists(outVideo))) continue;
-
-      // Оригинал телефонной съёмки сохраняем как есть — файлы тяжёлые,
-      // но требование «хранить оригиналы» распространяется и на них.
-      const reviewOriginal = path.join(ORIGINALS_DIR, review.file);
-      if (FORCE || !(await fileExists(reviewOriginal))) {
-        await copyFile(absReview, reviewOriginal).catch((err) =>
-          warn(`оригинал ${review.file} не скопирован: ${(err as Error).message}`),
-        );
-      }
-
-      let blurDataUrl = '';
-      let width = review.maxWidth;
-      let height = Math.round((review.maxWidth * 16) / 9);
-      try {
-        if (await fileExists(outPoster)) {
-          const posterImage = sharp(outPoster);
-          const meta = await posterImage.metadata();
-          width = meta.width ?? width;
-          height = meta.height ?? height;
-          blurDataUrl = await makeBlur(posterImage);
-        }
-      } catch (err) {
-        warn(`метаданные постера ${review.name}: ${(err as Error).message}`);
-      }
-
-      index.push({
-        name: review.name,
-        src: `/uploads/reviews/${review.name}.mp4`,
-        srcOriginal: `/uploads/originals/${review.file}`,
-        poster: `/uploads/reviews/${review.name}-poster.webp`,
-        width,
-        height,
-        alt: review.alt,
-        kind: 'REVIEW',
-        blurDataUrl,
-        attachments: [
-          {
-            owner: 'review',
-            key: review.name,
-            kind: 'REVIEW',
-            order: REVIEW_VIDEOS.indexOf(review),
-          },
-        ],
-      });
-
-      console.log(`  ${ready ? '=' : '+'} ${review.name}`);
-    }
-
-    // Убираем временные кадры
-    try {
-      const { unlink, readdir } = await import('node:fs/promises');
-      const dir = path.join(UPLOADS_DIR, 'reviews');
-      for (const f of await readdir(dir)) {
-        if (f.startsWith('_')) await unlink(path.join(dir, f));
-      }
-    } catch {
-      /* временных файлов могло не быть */
-    }
-  }
+  // Видеоотзывы обрабатываются отдельным скриптом: они приходят не из
+  // этой папки, а поштучно и в разное время. См. npm run reviews:import
 
   // ------------------------------------------------------------- ИТОГ
   const indexPath = path.join(UPLOADS_DIR, 'mediaIndex.json');
