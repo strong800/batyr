@@ -1,0 +1,339 @@
+// SQLite не поддерживает enum и Json — вместо них строки с фиксированным набором
+// значений. Допустимые значения перечислены в комментарии к каждому полю
+// и продублированы константами в src/lib/enums.ts.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------- КАТАЛОГ
+
+model Project {
+  id        String @id @default(cuid())
+  slug      String @unique
+  title     String
+  /// HOUSE | BANYA | AFRAME
+  category  String @default("HOUSE")
+
+  areaM2        Float?
+  floors        Int?
+  widthMm       Int?
+  lengthMm      Int?
+  ceilingMm     Int?
+  hasTerrace    Boolean @default(false)
+  terraceAreaM2 Float?
+  hasMansard    Boolean @default(false)
+  hasBalcony    Boolean @default(false)
+  /// WALL_KIT | UNDER_ROOF | WARM_LOOP — ориентировочная комплектация в карточке
+  basePackage   String?
+  foundation    String?
+
+  tagline     String?
+  description  String?
+
+  featured  Boolean @default(false)
+  visible   Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  seoTitle       String?
+  seoDescription String?
+
+  rooms Room[]
+  media Media[]
+  works Work[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([visible, sortOrder])
+  @@index([featured])
+}
+
+model Room {
+  id        String  @id @default(cuid())
+  projectId String
+  title     String
+  areaM2    Float?
+  sortOrder Int     @default(0)
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, sortOrder])
+}
+
+// ------------------------------------------------- РЕАЛИЗОВАННЫЕ ОБЪЕКТЫ
+
+model Work {
+  id      String  @id @default(cuid())
+  slug    String  @unique
+  title   String
+  /// Привязка к проекту каталога; может отсутствовать
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  location    String?
+  year        Int?
+  durationText String?
+  /// WALL_KIT | UNDER_ROOF | WARM_LOOP
+  packageKey  String?
+  facadeColor String?
+  description String?
+
+  featured  Boolean @default(false)
+  visible   Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  media Media[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([visible, sortOrder])
+}
+
+// ------------------------------------------------------------------ МЕДИА
+
+model Media {
+  id String @id @default(cuid())
+
+  /// PHOTO | PLAN | VIDEO | INTERIOR | RENDER | PRODUCTION | FOUNDER | REVIEW
+  kind String @default("PHOTO")
+
+  /// Путь от /public, например /uploads/projects/semeyka/cover.webp
+  src         String
+  /// Оригинал без обработки, хранится рядом
+  srcOriginal String?
+  /// Для видео — постер-кадр
+  poster      String?
+
+  width    Int?
+  height   Int?
+  alt      String?
+  caption  String?
+  /// Секунды, только для видео
+  duration Float?
+  /// Крошечный base64-webp для плавной подгрузки (placeholder="blur")
+  blurDataUrl String?
+
+  isCover   Boolean @default(false)
+  sortOrder Int     @default(0)
+
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  workId    String?
+  work      Work?    @relation(fields: [workId], references: [id], onDelete: Cascade)
+  reviewId  String?
+  review    Review?  @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([projectId, sortOrder])
+  @@index([workId, sortOrder])
+  @@index([kind, sortOrder])
+}
+
+// ---------------------------------------------------------- КОМПЛЕКТАЦИИ
+
+model Package {
+  id       String @id @default(cuid())
+  /// WALL_KIT | UNDER_ROOF | WARM_LOOP
+  key      String @unique
+  title    String
+  subtitle String?
+  /// Короткое описание уровня целиком
+  summary  String?
+  sortOrder Int   @default(0)
+  visible   Boolean @default(true)
+
+  items PackageItem[]
+}
+
+model PackageItem {
+  id        String  @id @default(cuid())
+  packageId String
+  title     String
+  /// Пояснение простым языком: зачем этот элемент нужен
+  note      String?
+  sortOrder Int     @default(0)
+  package   Package @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@index([packageId, sortOrder])
+}
+
+// ------------------------------------------------------------------ ЭТАПЫ
+
+model Stage {
+  id           String  @id @default(cuid())
+  title        String
+  text         String?
+  durationText String?
+  sortOrder    Int     @default(0)
+  visible      Boolean @default(true)
+}
+
+// ----------------------------------------------------------------- ОТЗЫВЫ
+
+model Review {
+  id         String  @id @default(cuid())
+  /// Стабильный ключ для сидирования и привязки медиа
+  key        String  @unique
+  authorName String
+  authorInfo String?
+  text       String?
+  rating     Int?
+  /// TEXT | SCREENSHOT | VIDEO
+  format     String  @default("TEXT")
+  visible    Boolean @default(true)
+  sortOrder  Int     @default(0)
+  media      Media[]
+
+  createdAt DateTime @default(now())
+}
+
+// --------------------------------------------------- НАСТРОЙКИ И КОНТЕНТ
+
+/// Контакты, ссылки, координаты, тексты блоков, ID Яндекс.Метрики.
+model Setting {
+  key       String  @id
+  value     String
+  /// TEXT | LONGTEXT | URL | NUMBER | BOOL — подсказка для админки
+  valueType String  @default("TEXT")
+  group     String  @default("common")
+  label     String?
+  hint      String?
+  sortOrder Int     @default(0)
+
+  updatedAt DateTime @updatedAt
+}
+
+/// Базовые цены и коэффициенты калькулятора. В коде ничего не зашито.
+model CalcParam {
+  key       String  @id
+  value     Float
+  label     String
+  unit      String?
+  group     String  @default("base")
+  hint      String?
+  /// true — значение-заглушка, нужно заменить реальным
+  isStub    Boolean @default(false)
+  sortOrder Int     @default(0)
+
+  updatedAt DateTime @updatedAt
+}
+
+// ----------------------------------------------------------------- ЗАЯВКИ
+
+model Lead {
+  id String @id @default(cuid())
+
+  /// CALC | PROJECT | CUSTOM | CALLBACK
+  type   String
+  /// NEW | IN_PROGRESS | CLOSED
+  status String @default("NEW")
+
+  name    String
+  phone   String
+  email   String?
+  comment String?
+
+  /// Заявка по конкретному проекту
+  projectId    String?
+  projectTitle String?
+
+  // Поля индивидуального проекта и калькулятора
+  areaM2     Float?
+  floors     Int?
+  hasLand    Boolean?
+  packageKey String?
+  options    String? // JSON-строка выбранных опций калькулятора
+  priceMin   Int?
+  priceMax   Int?
+
+  // Источник
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  utmContent  String?
+  utmTerm     String?
+  referrer    String?
+  landingPath String?
+  device      String?
+
+  files LeadFile[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([type, createdAt])
+}
+
+model LeadFile {
+  id           String @id @default(cuid())
+  leadId       String
+  /// Путь от /public
+  src          String
+  originalName String
+  sizeBytes    Int
+  mime         String
+  lead         Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([leadId])
+}
+
+// -------------------------------------------------------------- АНАЛИТИКА
+
+model Visitor {
+  id        String   @id
+  firstSeen DateTime @default(now())
+  lastSeen  DateTime @default(now())
+  /// desktop | mobile | tablet
+  device    String?
+
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  referrer    String?
+  landingPath String?
+
+  pageViews PageView[]
+  events    Event[]
+
+  @@index([firstSeen])
+}
+
+model PageView {
+  id        String   @id @default(cuid())
+  visitorId String
+  path      String
+  title     String?
+  device    String?
+  createdAt DateTime @default(now())
+  visitor   Visitor  @relation(fields: [visitorId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@index([path, createdAt])
+  @@index([visitorId])
+}
+
+model Event {
+  id        String @id @default(cuid())
+  visitorId String
+  /// phoneClick | telegramClick | calcStart | calcResult | formSubmit |
+  /// projectView | scrollDepth | catalogView | lightboxOpen | videoPlay
+  name      String
+  path      String?
+  /// Полезная нагрузка: id проекта, глубина скролла, тип формы
+  meta      String?
+  createdAt DateTime @default(now())
+  visitor   Visitor  @relation(fields: [visitorId], references: [id], onDelete: Cascade)
+
+  @@index([name, createdAt])
+  @@index([createdAt])
+}

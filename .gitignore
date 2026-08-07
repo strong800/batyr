@@ -1,0 +1,25 @@
+node_modules/
+.next/
+out/
+build/
+tsconfig.tsbuildinfo
+
+# Локальные настройки инструментов разработки
+.claude/
+.vscode/
+.idea/
+
+.env.local
+.env*.local
+
+prisma/dev.db
+prisma/dev.db-journal
+prisma/*.db
+prisma/*.db-journal
+
+# Обработанные медиа генерируются скриптом media:import из исходной папки
+public/uploads/
+
+*.log
+.DS_Store
+Thumbs.db
