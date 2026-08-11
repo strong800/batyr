@@ -1,0 +1,37 @@
+# Специально для `vercel --prod`: CLI грузит локальную папку напрямую
+# (не через GitHub) и, в отличие от git, не соблюдает вложенные
+# исключения вида "!media/reviews/" внутри "media/**" — тащит всю
+# папку целиком. Поэтому здесь всё исключается явно, без негаций.
+#
+# Что попадёт в деплой: исходный код, prisma/demo.db, обработанные
+# фото/видео из public/uploads/{projects,works,plans,production,site,video,reviews}
+# — то же самое, что закоммичено в git. Локальные исходники
+# (сырые видеоотзывы, оригиналы фото, node_modules) сюда не нужны.
+
+node_modules
+.next
+out
+build
+.git
+
+media
+
+public/uploads/originals
+public/uploads/leads
+public/uploads/admin
+public/uploads/mediaIndex.json
+
+prisma/dev.db
+prisma/dev.db-journal
+prisma/*.db-journal
+
+.env.local
+.env*.local
+
+.claude
+.vscode
+.idea
+
+*.log
+.DS_Store
+Thumbs.db
