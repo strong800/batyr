@@ -3,34 +3,39 @@
 # исключения вида "!media/reviews/" внутри "media/**" — тащит всю
 # папку целиком. Поэтому здесь всё исключается явно, без негаций.
 #
+# Все пути — с ведущим "/": без него gitignore-паттерн матчит папку
+# с таким именем на ЛЮБОЙ глубине дерева. Так "media" без слэша задел
+# не только корневую media/reviews/, но и src/components/media/
+# с рабочими компонентами — сборка на Vercel падала с "Module not found".
+#
 # Что попадёт в деплой: исходный код, prisma/demo.db, обработанные
 # фото/видео из public/uploads/{projects,works,plans,production,site,video,reviews}
 # — то же самое, что закоммичено в git. Локальные исходники
 # (сырые видеоотзывы, оригиналы фото, node_modules) сюда не нужны.
 
-node_modules
-.next
-out
-build
-.git
+/node_modules
+/.next
+/out
+/build
+/.git
 
-media
+/media
 
-public/uploads/originals
-public/uploads/leads
-public/uploads/admin
-public/uploads/mediaIndex.json
+/public/uploads/originals
+/public/uploads/leads
+/public/uploads/admin
+/public/uploads/mediaIndex.json
 
-prisma/dev.db
-prisma/dev.db-journal
-prisma/*.db-journal
+/prisma/dev.db
+/prisma/dev.db-journal
+/prisma/*.db-journal
 
-.env.local
-.env*.local
+/.env.local
+/.env*.local
 
-.claude
-.vscode
-.idea
+/.claude
+/.vscode
+/.idea
 
 *.log
 .DS_Store
