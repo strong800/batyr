@@ -18,6 +18,13 @@ const nextConfig = {
     // Формы и загрузка файлов в админке: разрешаем тела до 25 МБ.
     serverActions: { bodySizeLimit: '25mb' },
   },
+  // Файл SQLite открывается по строке подключения (DATABASE_URL), а не через
+  // require/import, поэтому автоматический трейсинг Next.js его не находит
+  // и не кладёт в серверный бандл. Без этой строки на Vercel Prisma не найдёт
+  // базу — см. docs/vercelDemo.md.
+  outputFileTracingIncludes: {
+    '/*': ['./prisma/*.db'],
+  },
 };
 
 export default nextConfig;

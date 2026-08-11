@@ -17,8 +17,25 @@ prisma/dev.db-journal
 prisma/*.db
 prisma/*.db-journal
 
+# Исключение из правила выше: снапшот БД для read-only демо на Vercel.
+# Только контент (проекты, объекты, комплектации, тексты) — без заявок
+# и без тестовых визитов аналитики. См. docs/vercelDemo.md.
+!prisma/demo.db
+
 # Обработанные медиа генерируются скриптом media:import из исходной папки
-public/uploads/
+public/uploads/*
+
+# Исключения: это webp/mp4-версии, которые реально рендерит сайт —
+# нужны в репозитории для демо-деплоя на Vercel (там нет доступа
+# к исходной папке с материалами). Оригиналы (originals/), файлы
+# из админки (admin/) и вложения заявок (leads/) остаются вне git.
+!public/uploads/projects
+!public/uploads/works
+!public/uploads/plans
+!public/uploads/production
+!public/uploads/site
+!public/uploads/video
+!public/uploads/reviews
 
 # Папка-приёмник видеоотзывов: сами ролики в репозиторий не идут,
 # инструкция внутри — идёт

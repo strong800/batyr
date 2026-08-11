@@ -13,7 +13,8 @@
     "db:studio": "prisma studio",
     "media:import": "tsx scripts/importMedia.ts",
     "reviews:import": "tsx scripts/importReviews.ts",
-    "fonts:fetch": "tsx scripts/fetchFonts.ts"
+    "fonts:fetch": "tsx scripts/fetchFonts.ts",
+    "postinstall": "prisma generate"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
